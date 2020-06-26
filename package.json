@@ -1,5 +1,5 @@
 {
-  "name": "mcp23017",
+  "name": "@jahartley/mcp23017",
   "version": "1.0.0",
   "description": "mcp23017 library modeled after ABElectronics IO-Pi-Plus library",
   "main": "mcp23017.js",

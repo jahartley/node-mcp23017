@@ -8,8 +8,7 @@
   },
   "author": "Rik Vermeer, ABElectronics",
   "license": "ISC",
-  "dependencies": {
-  },
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jahartley/mcp23017.git"

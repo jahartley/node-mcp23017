@@ -108,6 +108,9 @@ const MCP23017 = function (smbus, address) {
 	this.config.port_a_value = this.bus.readByteSync(this.config.ioaddress, registers.GPIOA);
 	this.config.port_b_value = this.bus.readByteSync(this.config.ioaddress, registers.GPIOB);
 
+	this.config.port_a_latch_value = this.bus.readByteSync(this.config.ioaddress, registers.OLATA);
+	this.config.port_b_latch_value = this.bus.readByteSync(this.config.ioaddress, registers.OLATA);
+
 	this.config.port_a_pullup = this.bus.readByteSync(this.config.ioaddress, registers.GPPUA);
 	this.config.port_b_pullup = this.bus.readByteSync(this.config.ioaddress, registers.GPPUB);
 
@@ -183,7 +186,7 @@ MCP23017.prototype.setPortDirection = function (port, direction) {
 /**
  * Set the internal 100K pull-up resistors for an individual pin
  *
- * @param pin Pin 1 to 16
+ * @param pin Pin 0 to 15
  * @param value Value where 1 = enabled and 0 = disabled
  */
 MCP23017.prototype.setPinPullup = function (pin, value) {
@@ -191,8 +194,24 @@ MCP23017.prototype.setPinPullup = function (pin, value) {
 		this.config.port_a_pullup = this.updateByte(this.config.port_a_pullup, pin, value);
 		this.bus.writeByteSync(this.config.ioaddress, registers.GPPUA, this.config.port_a_pullup);
 	} else {
-		this.config.port_b_pullup = this.updateByte(this.config.port_a_pullup, pin, value);
+		this.config.port_b_pullup = this.updateByte(this.config.port_a_pullup, pin - 8, value);
 		this.bus.writeByteSync(this.config.ioaddress, registers.GPPUB, this.config.port_b_pullup);
+	}
+};
+
+/**
+ * Read/Get the pullup value of an individual pin
+ *
+ * @param pin Pins 0 to 15
+ * @returns {number} Value of given pin, where 0 = logic level low, 1 = logic level high
+ */
+MCP23017.prototype.getPinPullup = function (pin) {
+	if (pin < 8) {
+		this.config.port_a_pullup = this.bus.readByteSync(this.config.ioaddress, registers.GPPUA);
+		return this.checkBit(this.config.port_a_pullup, pin);
+	} else {
+		this.config.port_b_pullup = this.bus.readByteSync(this.config.ioaddress, registers.GPPUB);
+		return this.checkBit(this.config.port_b_pullup, pin - 8);
 	}
 };
 
@@ -213,6 +232,22 @@ MCP23017.prototype.setPortPullups = function (port, value) {
 };
 
 /**
+ * Read/Get the internal 100K pull-up resistors for the selected IO port
+ *
+ * @param port Port 0 = pins 0 to 7, port 1 = pins 8 to 15
+ * @returns {number} Value is a number between 0 and 255 or 0x00 and 0xFF
+ */
+MCP23017.prototype.getPortPullups = function (port) {
+	if (port === 0) {
+		this.config.port_a_pullup = this.bus.readByteSync(this.config.ioaddress, registers.GPPUA);
+		return this.config.port_a_pullup;
+	} else {
+		this.config.port_b_pullup = this.bus.readByteSync(this.config.ioaddress, registers.GPPUB);
+		return this.config.port_b_pullup;
+	}
+};
+
+/**
  * Write to an individual pin
  *
  * @param pin Pin to write to
@@ -223,8 +258,7 @@ MCP23017.prototype.writePin = function (pin, value) {
 		this.config.port_a_value = this.updateByte(this.config.port_a_value, pin, value);
 		this.bus.writeByteSync(this.config.ioaddress, registers.GPIOA, this.config.port_a_value);
 	} else {
-		pin = pin - 8;
-		this.config.port_b_value = this.updateByte(this.config.port_b_value, pin, value);
+		this.config.port_b_value = this.updateByte(this.config.port_b_value, pin - 8, value);
 		this.bus.writeByteSync(this.config.ioaddress, registers.GPIOB, this.config.port_b_value);
 	}
 };
@@ -256,9 +290,8 @@ MCP23017.prototype.readPin = function (pin) {
 		this.config.port_a_value = this.bus.readByteSync(this.config.ioaddress, registers.GPIOA);
 		return this.checkBit(this.config.port_a_value, pin);
 	} else {
-		pin = pin - 8;
 		this.config.port_b_value = this.bus.readByteSync(this.config.ioaddress, registers.GPIOB);
-		return this.checkBit(this.config.port_b_value, pin);
+		return this.checkBit(this.config.port_b_value, pin - 8);
 	}
 };
 
@@ -289,7 +322,7 @@ MCP23017.prototype.invertPin = function (pin, polarity) {
 		this.config.port_a_polarity = this.updateByte(this.config.port_a_polarity, pin, polarity);
 		this.bus.writeByteSync(this.config.ioaddress, registers.IPOLA, this.config.port_a_polarity);
 	} else {
-		this.config.port_b_polarity = this.updateByte(this.config.port_b_polarity, pin, polarity);
+		this.config.port_b_polarity = this.updateByte(this.config.port_b_polarity, pin - 8, polarity);
 		this.bus.writeByteSync(this.config.ioaddress, registers.IPOLB, this.config.port_b_polarity);
 	}
 };
@@ -356,6 +389,39 @@ MCP23017.prototype.setInterruptType = function (port, value) {
 };
 
 /**
+ * Read the output latch value of an individual pin
+ *
+ * @param pin Pins 0 to 15
+ * @returns {number} Value of given pin, where 0 = logic level low, 1 = logic level high
+ */
+MCP23017.prototype.readPinOutputLatch = function (pin) {
+	if (pin < 8) {
+		this.config.port_a_latch_value = this.bus.readByteSync(this.config.ioaddress, registers.OLATA);
+		return this.checkBit(this.config.port_a_latch_value, pin);
+	} else {
+		this.config.port_b_latch_value = this.bus.readByteSync(this.config.ioaddress, registers.OLATB);
+		return this.checkBit(this.config.port_b_latch_value, pin - 8);
+	}
+};
+
+/**
+ * Read output latch value of all pins on the selected port
+ *
+ * @param port Port 0 = pins 0 to 7, port 1 = pins 8 to 15
+ * @returns {number} Value is a number between 0 and 255 or 0x00 and 0xFF
+ */
+MCP23017.prototype.readPortOutputLatches = function (port) {
+	if (port === 0) {
+		this.config.port_a_latch_value = this.bus.readByteSync(this.config.ioaddress, registers.OLATA);
+		return this.config.port_a_latch_value;
+	} else {
+		this.config.port_b_latch_value = this.bus.readByteSync(this.config.ioaddress, registers.OLATB);
+		return this.config.port_b_latch_value;
+	}
+};
+
+
+/**
  * These bits set the compare value for pins configured for interrupt-on-change on the
  * selected port. If the associated pin level is the opposite from the register bit,
  * an interrupt occurs.
@@ -398,7 +464,7 @@ MCP23017.prototype.setInterruptOnPin = function (pin, value) {
 		this.config.inta = this.updateByte(this.config.inta, pin, value);
 		this.bus.writeByteSync(this.config.ioaddress, registers.GPINTENA, this.config.inta);
 	} else {
-		this.config.intb = this.updateByte(this.config.intb, pin, value);
+		this.config.intb = this.updateByte(this.config.intb, pin - 8, value);
 		this.bus.writeByteSync(this.config.ioaddress, registers.GPINTENB, this.config.intb);
 	}
 };
